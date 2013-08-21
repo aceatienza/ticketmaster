@@ -1,0 +1,93 @@
+<?php
+
+/**
+* 	@file
+*	Tests for ticketmaster.module
+*/
+
+/**
+*	Base class for testing the Ticketmaster module.
+*/
+class TicketmasterTestCase extends DrupalWebTestCase {
+
+	public static function getInfo() {
+		return array(
+			'name'			=> 'Ticketmaster module functionality',
+			'description'	=> 'Tests hooks and methods in Ticketmaster module',
+			'group'			=> 'Ticketmaster',
+		);
+	}
+
+	function setUp() {
+		parent::setUp('ticketmaster');
+	}
+
+	public function testTicketmasterBuildResponse() {
+		$web_user = $this->drupalCreateUser(array('access content'));
+		$this->drupalLogin($web_user);
+		$this->drupalGet('ticketmaster');
+      	$this->assertResponse(200, 'Ticketmaster path exists.');
+	}
+
+	public function testTicketmasterConfigurationForm()
+	{
+		$admin_user = $this->drupalCreateUser(array('access administration pages'));
+		$this->drupalLogin($admin_user);
+      	$this->drupalGet('admin/config/ticketmaster');
+      	$this->assertFieldById('edit-ticketmaster-api-key', '', 'The Ticketmaster Api Key field is set');
+      	$this->assertFieldById('edit-ticketmaster-api-secret', '', 'The Ticketmaster Api Secret field is set');
+	}
+}
+
+/**
+ *	Unit Tests for Ticketmaster module
+ * @see DrupalUnitTestCase
+ */
+class TicketmasterUnitTestCase extends DrupalUnitTestCase {
+	public static function getInfo(){
+		return array(
+			'name' => 'Ticketmaster unit tests',
+			'description' => 'Ticketmaster request and response unit tests',
+			'group'	=> 'Ticketmaster',
+		);
+	}
+
+	function setUp() {
+		drupal_load('module', 'ticketmaster');
+		parent::setUp();
+	}
+
+
+	/**
+	*	Call ticketmaster_fetch_data and check its result
+	*/
+	public function testTicketmasterUnitTestFetchData()
+	{
+		$modulePath = drupal_get_path('module', 'ticketmaster');
+		$json = file_get_contents($modulePath.'/tests/seats.json');
+
+		$result = ticketmaster_fetch_data();
+
+		/* REMOVE ONCE API IS UP */
+		$result = $json;
+
+		json_decode($result, true);
+		// debug($result);
+
+		$row_key_exists = drupal_array_nested_key_exists('row', $result);
+		$section_key_exists = drupal_array_nested_key_exists('sections', $result);
+
+		$this->assertTrue($row_key_exists);
+		$this->assertTrue($section_key_exists);
+	}
+
+	/**
+	*	Call ticketmaster_build_response and check it's result.
+	*/
+	public function testTicketmasterUnitTestBuildResponse()
+	{
+		$result = ticketmaster_build_response();
+		// $this->assert  // 
+	}
+
+}

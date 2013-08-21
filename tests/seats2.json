@@ -1,0 +1,12 @@
+{
+	"data": {
+		"width": 661,
+		"height": 512,
+		"maxSeats": 4,
+		"background": "seating_charts_06-01.png",
+		"sections": [
+			{	"name": "Poncho",
+				"price": "45.00",
+				"seats": [
+					{ "row": "A", "seat": "1",	"available": "true",	"type": "Fulll Price Ticket", "cx": 165, "cy": 291 }
+]}]}}

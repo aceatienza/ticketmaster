@@ -1,0 +1,80 @@
+/** {
+	margin: 0;
+	padding: 0;
+}
+
+body {
+	width: 100%;
+	background: #383E84;
+	padding: 50px;
+
+}*/
+
+#map {
+	position: relative;
+}
+
+#selected-seats-table {
+	
+}
+	#selected-seats-table td,
+	#selected-seats-table th {
+		font-family: 'Helvetica', sans-serif;
+		font-weight: 100;
+		font-size: 14px;
+		color: white;
+		padding: 10px;
+		text-align: center;
+		position: relative;
+	}
+	
+	#selected-seats-table .table-delete {
+/* 		-webkit-appearance: none; */
+/* 		   -moz-appearance: none; */
+/* 		        appearance: none; */
+		
+		width: 14px;
+		height: 14px;
+		cursor: pointer;
+		
+		background-image: url('../img/seating_chart_delete_button_03.gif');
+	}
+	
+	#selected-seats-table th {
+		text-transform: uppercase;
+	}
+	
+	#selected-seats-data {
+		
+	}
+
+#seat-tooltip {
+	font-family: 'Helvetica', sans-serif;
+	font-size: 12px;
+	line-height: 18px;
+	position: absolute;
+	left: 0;
+	top: 0;
+	background: rgba(0,0,0,0.80);
+	height: auto;
+	color: white;
+	padding: 15px 10px 10px 15px;
+	box-sizing: border-box;
+	width: 155px;
+	height: 101px;
+	pointer-events: none;
+	display: none;
+	background: url('../img/seating_chart_tooltip.png');
+}
+
+/* 	@group SVG styles	 */
+	#map svg {
+/* 		background-image: url('../img/seating_charts_06-01.png'); */
+		background-size: 100%;
+		background-repeat: no-repeat;
+	}
+		#map svg .seat.sold {
+			opacity: 0.25;
+		}
+		
+/* @end */

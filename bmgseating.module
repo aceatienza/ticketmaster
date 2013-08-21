@@ -1,0 +1,321 @@
+<?php
+
+// TODO: implement block_view
+
+/**
+*   @file
+*   Retrieves information from Ticketmaster's api.
+*/
+
+/**
+ * Implements hook_help.
+ * Displays help and module information.
+ *
+ * @param path  Which path of the site we're using to display help
+ * @param arg   Array that holds the current path as returned from arg() function
+ */
+function bmgseating_help($path, $arg) {
+  switch ($path) {
+    case "admin/help#bmgseating":
+      return '<p>' . t("Fetches JSON data from Ticketmaster's api using curl.") . '</p>';
+      break;
+  }
+}
+
+/**
+ * Implements hook_block_info().
+ * Appears in the block list
+ */
+// function bmgseating_block_info() {
+//   $blocks['bmgseating'] = array(
+//     'info' => t('BMGSeating'),        
+//     'cache' => DRUPAL_CACHE_PER_ROLE,   // May need to turn off
+//   );
+//   return $blocks;
+// }
+
+/**
+ * TODO: implement hook_block_view().
+ * 
+ */
+// function bmgseating_block_view($delta = '') {
+//   $modulePath = drupal_get_path('module', 'bmgseating');
+
+//   switch ($delta) {
+//     case 'bmgseating':
+//       $block['subject'] = t('Seating chart');
+//       $block['content']['#markup'] = bmgseating_build_response();
+
+      // $block['content'] = t('No seats :(');  // BREAKS THE SITE
+      // $block['content'] = array(
+      //   '#type' => 'html_tag',
+      //   '#tag' => 'div',
+      //   '#attributes' => array('id' => 'selected-seats-table'),
+      //   // '#value' => 'Seat!',
+        // '#attached' => array('css' => array(drupal_get_path('module', 'bmgseating') .
+        //       '/css/bmgseatingstyles.css'),
+        //     ),
+      // );
+
+      // Below works only with forms and page render arrays, need page render array
+      // $block['content']['#attached']['js'] = array($modulePath . '/js/app.js'); // X
+
+      // from ajax_example, same for js;
+      // $block['#attached']['css'] = array($modulePath . '/css/bmgseatingstyles.css');  // X
+      // $block['#attached']['js'] = array($modulePath . '/js/app.js'); // X
+
+      // ALL BELOW DOESN'T WORK
+      // $block['content']['#attached']['css'] = array($modulePath . '/css/bmgseatingstyles.css');
+      // $block['content']['#attached'] = array
+      // (        
+      //   'css' => array($modulePath . '/css/styles.css'),
+      //   'js'  => array($modulePath . '/js/app.js',
+      //                  $modulePath . '/js/d3.v3.min.js'),     // need to somehow check if this is already loaded in the site
+      // $block['#attached'] = array
+      // (        
+      //   'css' => array($modulePath . '/css/styles.css'),
+      //   'js'  => array($modulePath . '/js/app.js',
+      //                  $modulePath . '/js/d3.v3.min.js',
+      //                  $modulePath . '/js/jquery-1.9.1.min.js'),     // need to somehow check if this is already loaded in the site
+      // );
+
+      // for testing
+      // $block['content']['#markup'] = 'Hi';
+      // break;
+//   }
+
+//   return $block;
+// }
+
+/**
+ * Implements hook_menu().
+ * Routes: bmgseating, admin/config/bmgseating
+ */
+function bmgseating_menu() {
+	
+	$items = array();
+
+  $items['bmgseating'] = array(
+    'title'       => 'Available seats',
+    'description' => 'The available seats.',
+    'type'        =>  MENU_NORMAL_ITEM,
+    'page callback'  =>   'bmgseating_drupal_get_form',
+    'access callback' => TRUE,                            
+    'access_arguments' => array('access content'),        
+  );
+
+  $items['bmgseating/form'] = array(
+    'title'       => 'Ajax form',
+    'page callback'  =>  'bmgseating_drupal_get_form',
+    'access callback' => TRUE,                            // everyone has access
+    'type' => MENU_CALLBACK,
+    // 'access_arguments' => array('access content'),        // everyone has access
+  );
+
+   // go directly to ajax_callback
+   $items['bmgseating/pureform'] = array(
+    'title'       => 'Ajax form',
+    'page callback'  =>  'bmgseating_direct_ajax_callback',
+    'page arguments' => array(1),
+    'access callback' => TRUE,                      
+    );
+
+  $items['ticketmaster'] = array(
+    'title' 			=> 'Ticketmaster',
+    'description' 		=> 'The available seats provided by Ticketmaster.',
+    'type' 				=> MENU_CALLBACK,  						          // api form only
+    'page callback' 	=> 'bmgseating_fetch_data', 	    // generate content of page
+    'access callback'	=> TRUE,									          // everyone has access
+    'access_arguments' => array('access content'),        // everyone has access
+    'delivery callback' => 'drupal_json_output',
+  );
+
+  $items['admin/config/bmgseating'] = array(
+  	'title' 			=> 'bmgseating configuration',
+  	'description' 		=> 'Configure Ticketmaster settings',
+  	'page callback' 	=> 'drupal_get_form',					               // use Form api
+  	'page arguments'	=> array('bmgseating_config_form'),
+    'access arguments'	=> array('access administration pages'),   // admin user only
+    'type'				=> MENU_NORMAL_ITEM,
+  );
+
+  return $items;
+}
+
+function bmgseating_drupal_get_form() {
+  return drupal_get_form('bmgseating_form');
+}
+
+/**
+* Builds the seating chart form
+*/
+function bmgseating_form($form, $form_state) {
+  $form = array();
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#prefix' => bmgseating_block_html(),
+    '#weight' => 10,
+    '#attributes' => array('class' => array('seating-submit')),  
+    '#ajax' => array('callback' => 'bmgseating_direct_ajax_callback',
+                      'wrapper' => 'chosen_seats'),
+    '#value' => 'Submit',
+  );
+
+  return $form;
+}
+
+/*
+*   Handle post submission from bmgseating_app.js
+*/
+function bmgseating_direct_ajax_callback() {
+  $seats = $_POST['chosen_seats'];
+  $seats = drupal_json_decode($seats);
+
+  /* Do something here such as save to db, or send back to Ticketmaster for processing */
+
+  drupal_json_output($seats);  // json_encode with header
+}
+
+
+/**
+ * Builds the configuration form by adding elements to the $form array
+ * Automatically handle's POST by setting variables in system settings
+ * @see bmgseating_menu()
+ */
+function bmgseating_config_form($form, &$form_state) {
+  $form['bmgseating_api_key'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Ticketmaster API Key'),
+    '#default_value' => variable_get('ticketmaster_api_key'),
+    '#size' => 30,
+    '#maxlength' => 128,
+    '#description' => t('Ticketmaster API Key.'),
+    '#required' => FALSE,
+  );
+
+  $form['ticketmaster_api_secret'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Ticketmaster API Secret'),
+    '#default_value' => variable_get('ticketmaster_api_secret'),
+    '#size' => 30,
+    '#maxlength' => 128,
+    '#description' => t('Ticketmaster API Secret.'),
+    '#required' => False,
+  );
+
+  return system_settings_form($form);
+}
+
+/**
+*	Fetch data and return response.
+*	@see  ticketmaster_fetch_data
+* @see  ticketmaster_block_html
+*/
+function bmgseating_build_response($response = null)  	
+{
+	$response = bmgseating_fetch_data();  
+
+  // if($response IS OK)
+        // if (empty($result)) {
+        //   $block['content'] = t('No seats available.');  
+        // } 
+        // else build the html with the data
+
+        //   $block['content'] = $result;
+        //   // Pass data through theme function if needed
+        //   // $block['content'] = theme('item_list', array(
+        //   //   'seats' => $seats));
+        // }
+      // else if ($response contains error){
+      // give a simple response
+
+  /* Do something with the $response if needed such as a renderable array */
+  $html_response = bmgseating_block_html();
+
+  return $html_response;
+}
+
+/**
+* custom html block
+* @return string
+*/
+function bmgseating_block_html() {
+  return '
+  <div id="map">
+    <div id="seat-tooltip"></div>
+      <!-- svg seating chart goes here -->
+  </div>
+  <div id="selected-seats-table">
+    <table>
+      <thead>
+        <tr>
+          <th>Section</th>
+          <th>Row</th>
+          <th>Seat</th>
+          <th>Type</th>
+          <th>Price</th>
+        </tr>
+      </thead>
+      <tbody id="selected-seats-data">
+      </tbody>
+    </table>
+  </div>
+  
+  ';
+}
+
+/**
+* 	Send a GET request to Ticketmaster and return the response
+*/
+function bmgseating_fetch_data() 
+{
+	$ticketmaster_api_key = variable_get('ticketmaster_api_key');
+	$ticketmaster_api_secret = variable_get('ticketmaster_api_secret');
+
+	$apiEndpoint = '';  // http://www.ticketmaster.com/json/search/
+	$header = '';  // if there's a header
+	$query = '';  // 
+	$timeout = 300;
+
+	$options = array( CURLOPT_HTTPHEADER 		=> $header,
+	                  CURLOPT_TIMEOUT			=> $timeout,
+	                  CURLOPT_HEADER 			=> false,
+	                  CURLOPT_URL 				=> $apiEndpoint . '?query=' . $query,
+	                  CURLOPT_RETURNTRANSFER 	=> true,
+	                  CURLOPT_SSL_VERIFYPEER 	=> false);
+
+	$curl = curl_init();
+	curl_setopt_array($curl, $options);
+	$response = curl_exec($curl);  
+
+	if(!curl_exec($curl)) {
+		die('Error: "' . curl_error($curl) . '" - Code: ' . curl_errno($curl));
+	}
+	curl_close($curl);
+
+  /*** Mock for testing  **/
+  $modulePath = drupal_get_path('module', 'bmgseating');
+  $json = file_get_contents($modulePath.'/data/map01a.js'); 
+  $json = json_decode($json, TRUE);
+  /** end Mock **/
+
+	return $json;
+}
+
+/**
+* Use jQuery 1.9.1 and add basepath for app.js
+*/
+function bmgseating_js_alter(&$javascript) {
+  $javascript['misc/jquery.js']['data'] = drupal_get_path('module', 'bmgseating') . '/js/jquery-1.9.1.min.js';
+  
+  $modulePath = drupal_get_path('module', 'bmgseating');
+
+  $settings = array('modulePath' => $modulePath);
+  drupal_add_js(array('bmgseating' => $settings), 'setting');
+}
+
+
+
+
+
